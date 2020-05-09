@@ -5,11 +5,13 @@
 #![no_std]
 
 mod register;
+mod config;
 
 use embedded_hal as hal;
 use hal::blocking::i2c;
 
 pub use register::Register;
+pub use config::*;
 
 
 
