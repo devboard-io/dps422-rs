@@ -1,65 +1,17 @@
+//!
+//! DPS422 embedded-hal I2C driver crate
+//!
+
 #![no_std]
+
+mod register;
 
 use embedded_hal as hal;
 use hal::blocking::i2c;
 
-// DPS422 register addresses
+pub use register::Register;
 
-// See datasheet https://www.infineon.com/dgdl/Infineon-DPS422-DS-v01_03-EN.pdf?fileId=5546d46264fee02f01650249502c1ddf
 
-#[allow(non_camel_case_types)]
-#[allow(dead_code)]
-#[repr(u8)]
-pub enum Register {
-    PSR_B2 = 0x00,
-    PSR_B1 = 0x01,
-    PSR_B0 = 0x02,
-    TMP_B2 = 0x03,
-    TMP_B1 = 0x04,
-    TMP_B0 = 0x05,
-    PSR_CFG = 0x06,
-    TEMP_CFG = 0x07,
-    MEAS_CFG = 0x08,
-    CFG_REG = 0x09,
-    INT_STS = 0x0A,
-    WM_CFG = 0x0B,
-    FIFO_STS = 0x0C,
-    RESET = 0x0D,
-    PROD_ID = 0x1D,
-
-    T_GAIN_COEFF = 0x20,
-    T_dVBE_COEFF = 0x21,
-    T_VBE_COEFF = 0x22,
-
-    COEFF_REG_1 = 0x26,
-    COEFF_REG_2 = 0x27,
-    COEFF_REG_3 = 0x28,
-    COEFF_REG_4 = 0x29,
-    COEFF_REG_5 = 0x2A,
-    COEFF_REG_6 = 0x2B,
-    COEFF_REG_7 = 0x2C,
-    COEFF_REG_8 = 0x2D,
-    COEFF_REG_9 = 0x2E,
-    COEFF_REG_10 = 0x2F,
-    COEFF_REG_11 = 0x30,
-    COEFF_REG_12 = 0x31,
-    COEFF_REG_13 = 0x32,
-    COEFF_REG_14 = 0x33,
-    COEFF_REG_15 = 0x34,
-    COEFF_REG_16 = 0x35,
-    COEFF_REG_17 = 0x36,
-    COEFF_REG_18 = 0x37,
-    COEFF_REG_19 = 0x38,
-    COEFF_REG_20 = 0x39,
-}
-
-impl Register {
-    /// Get register address
-    pub fn addr(self) -> u8 {
-        self as u8
-    }
-
-}
 
 const PRODUCT_ID: u8 = 0x1A;
 
@@ -129,7 +81,7 @@ where
             // dps422.read_calbration_coefficients().ok();
             // IMPORTANT: the MSB of the TEMP_CFG register MUST be set for temperature readings to work
             // without the temperature values make no sense.
-            dps422.write_reg(Register::TEMP_CFG, 0x80);
+            dps422.write_reg(Register::TEMP_CFG, 0x80).ok();
 
             dps422.standby().ok();
             // dps422.reset().ok();
@@ -231,7 +183,7 @@ where
         Ok(pres_cal)
     }
 
-    fn reset(&mut self) -> Result<(), E> {
+    pub fn reset(&mut self) -> Result<(), E> {
         self.write_reg(Register::RESET, 0b1001)
     }
 
@@ -246,17 +198,17 @@ where
         Ok(buffer[0])
     }
 
-    fn write_byte(&mut self, reg: u8, value: u8) -> Result<(), E> {
+    fn _write_byte(&mut self, reg: u8, value: u8) -> Result<(), E> {
         let bytes = [reg, value];
         self.i2c.write(self.address, &bytes)
     }
 
-    fn correct_temp(&mut self) -> Result<(), E> {
-        self.write_byte(0x0E, 0xA5)?;
-        self.write_byte(0x0F, 0x96)?;
-        self.write_byte(0x62, 0x02)?;
-        self.write_byte(0x0E, 0x00)?;
-        self.write_byte(0x0F, 0x00)?;
+    fn _correct_temp(&mut self) -> Result<(), E> {
+        self._write_byte(0x0E, 0xA5)?;
+        self._write_byte(0x0F, 0x96)?;
+        self._write_byte(0x62, 0x02)?;
+        self._write_byte(0x0E, 0x00)?;
+        self._write_byte(0x0F, 0x00)?;
         Ok(())
     }
 
