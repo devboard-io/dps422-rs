@@ -61,35 +61,56 @@ impl CalbrationCoeffs {
 pub struct DPS422<I2C> {
     i2c: I2C,
     address: u8,
-    pub coeffs: CalbrationCoeffs
+    coeffs: CalbrationCoeffs,
+    pres_rate: PressureRate,
 }
 
 impl<I2C, E> DPS422<I2C>
 where
     I2C: i2c::WriteRead<Error = E> + i2c::Write<Error = E>,
 {
-    pub fn new(i2c: I2C, address: u8) -> Self {
+    pub fn new(i2c: I2C, address: u8, config: &Config) -> Result<Self, E>  {
 
         let mut dps422 = Self {
             i2c,
             address,
-            coeffs: CalbrationCoeffs::default()
+            coeffs: CalbrationCoeffs::default(),
+            pres_rate: PressureRate::_1_SPS // config.pres_Rate.un
         };
 
 
-        let id: u8 = dps422.get_product_id().ok().unwrap();
-        if id == PRODUCT_ID {
-            dps422.read_calbration_coefficients().ok();
-            // dps422.read_calbration_coefficients().ok();
-            // IMPORTANT: the MSB of the TEMP_CFG register MUST be set for temperature readings to work
-            // without the temperature values make no sense.
-            dps422.write_reg(Register::TEMP_CFG, 0x80).ok();
+        let id: u8 = dps422.get_product_id()?;
+        if id != PRODUCT_ID {
 
-            dps422.standby().ok();
-            // dps422.reset().ok();
         }
 
-        dps422
+        dps422.read_calbration_coefficients().ok();
+        dps422.apply_config(config)?;
+        dps422.standby().ok();
+
+        Ok(dps422)
+    }
+
+    fn apply_config(&mut self, config: &Config) -> Result<(), E> {
+        let psr_cfg = ((config.pres_rate.unwrap_or_default() as u8) << 4) | (config.pres_res.unwrap_or_default() as u8);
+        self.write_reg(Register::PSR_CFG, psr_cfg)?;
+
+        // IMPORTANT: the MSB of the TEMP_CFG register MUST be set for temperature readings to work
+        // without the temperature values make no sense.
+        let temp_cfg = 0x80 | (config.temp_rate.unwrap_or_default() as u8) << 4 | (config.temp_res.unwrap_or_default() as u8);
+        self.write_reg(Register::TEMP_CFG, temp_cfg)?;
+
+        let cfg = ((config.int_source.unwrap_or_default() as u8) << 4) |
+            ((config.int_polarity as u8) << 3) |
+            ((config.fifo_stop_on_full as u8) << 2) |
+            ((config.fifo_enable as u8) << 1) |
+            ((config.spi_mode as u8) << 0);
+
+        self.write_reg(Register::CFG_REG, cfg)?;
+
+        self.write_reg(Register::WM_CFG, config.watermark_level)?;
+
+        Ok(())
     }
 
     fn standby(&mut self) -> Result<(), E> {

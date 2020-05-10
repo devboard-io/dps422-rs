@@ -1,7 +1,7 @@
 #![allow(non_camel_case_types)]
 
 #[derive(Copy, Clone, Debug)]
-pub enum PressureRange {
+pub enum PressureRate {
     _1_SPS = 0b000,
     _2_SPS = 0b001,
     _4_SPS = 0b010,
@@ -12,9 +12,15 @@ pub enum PressureRange {
     _128_SPS = 0b111,
 }
 
-impl PressureRange {
+impl PressureRate {
     pub fn val(self) -> u8 {
         self as u8
+    }
+}
+
+impl Default for PressureRate {
+    fn default() -> Self {
+        PressureRate::_1_SPS
     }
 }
 
@@ -50,8 +56,14 @@ impl PressureResolution {
     }
 }
 
+impl Default for PressureResolution {
+    fn default() -> Self {
+        PressureResolution::_256_SAMPLES_1X_DECI
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
-pub enum TemperatureRange {
+pub enum TemperatureRate {
     _1_SPS = 0b000,
     _2_SPS = 0b001,
     _4_SPS = 0b010,
@@ -61,11 +73,18 @@ pub enum TemperatureRange {
     _64_SPS = 0b110,
 }
 
-impl TemperatureRange {
+impl TemperatureRate {
     pub fn val(self) -> u8 {
         self as u8
     }
 }
+
+impl Default for TemperatureRate {
+    fn default() -> Self {
+        TemperatureRate::_1_SPS
+    }
+}
+
 
 #[derive(Copy, Clone, Debug)]
 pub enum TemperatureResolution {
@@ -84,6 +103,13 @@ impl TemperatureResolution {
         self as u8
     }
 }
+
+impl Default for TemperatureResolution {
+    fn default() -> Self {
+        TemperatureResolution::_256_SAMPLES_1X_DECI
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub enum InterruptSource {
     NO_INTERRRUPT   = 0b0000,
@@ -100,19 +126,25 @@ impl InterruptSource {
     }
 }
 
+impl Default for InterruptSource {
+    fn default() -> Self {
+        InterruptSource::NO_INTERRRUPT
+    }
+}
 
 /// DPS422 configuration struct
+#[derive(Copy, Clone, Debug)]
 pub struct Config {
-    pub(crate) pres_range: Option<PressureRange>,
+    pub(crate) pres_rate: Option<PressureRate>,
     pub(crate) pres_res: Option<PressureResolution>,
-    pub(crate) temp_range: Option<TemperatureRange>,
+    pub(crate) temp_rate: Option<TemperatureRate>,
     pub(crate) temp_res: Option<TemperatureResolution>,
     pub(crate) int_source: Option<InterruptSource>,
-    pub(crate) int_polarity: Option<bool>,
-    pub(crate) fifo_stop_on_full: Option<bool>,
-    pub(crate) fifo_enable: Option<bool>,
-    pub(crate) spi_mode: Option<bool>,
-    pub(crate) watermark_level: Option<u8>
+    pub(crate) int_polarity: bool,
+    pub(crate) fifo_stop_on_full: bool,
+    pub(crate) fifo_enable: bool,
+    pub(crate) spi_mode: bool,
+    pub(crate) watermark_level: u8
 }
 
 impl Config {
@@ -120,21 +152,21 @@ impl Config {
      // Creates a new configuration object with default values
      pub fn new() -> Self {
         Config {
-            pres_range: None,
+            pres_rate: None,
             pres_res: None,
-            temp_range: None,
+            temp_rate: None,
             temp_res: None,
             int_source: None,
-            int_polarity: None,
-            fifo_stop_on_full: None,
-            fifo_enable: None,
-            spi_mode: None,
-            watermark_level: None
+            int_polarity: false,
+            fifo_stop_on_full: false,
+            fifo_enable: false,
+            spi_mode: false,
+            watermark_level: 0x1F
         }
     }
 
-    pub fn pres_range(&mut self, range: PressureRange) -> &mut Self {
-        self.pres_range = Some(range);
+    pub fn pres_rate(&mut self, rate: PressureRate) -> &mut Self {
+        self.pres_rate = Some(rate);
         self
     }
 
@@ -143,8 +175,8 @@ impl Config {
         self
     }
 
-    pub fn temp_range(&mut self, range: TemperatureRange) -> &mut Self {
-        self.temp_range = Some(range);
+    pub fn temp_rate(&mut self, rate: TemperatureRate) -> &mut Self {
+        self.temp_rate = Some(rate);
         self
     }
 
@@ -155,26 +187,26 @@ impl Config {
 
     pub fn int_source(&mut self, int_source: InterruptSource, polarity: bool) -> &mut Self {
         self.int_source = Some(int_source);
-        self.int_polarity = Some(polarity);
+        self.int_polarity = polarity;
         self
     }
 
     pub fn fifo(&mut self, stop_on_full: bool, enable: bool) -> &mut Self {
-        self.fifo_stop_on_full = Some(stop_on_full);
-        self.fifo_enable = Some(enable);
+        self.fifo_stop_on_full = stop_on_full;
+        self.fifo_enable = enable;
         self
     }
 
     pub fn spi_mode(&mut self, three_wire: bool) -> &mut Self {
-        self.spi_mode = Some(three_wire);
+        self.spi_mode = three_wire;
         self
     }
 
     pub fn watermark_level(&mut self, level: u8) -> &mut Self {
         if level > 0x1F {
-            self.watermark_level = Some(0x1F);
+            self.watermark_level = 0x1F;
         } else {
-            self.watermark_level = Some(level);
+            self.watermark_level = level;
         }
         self
     }
