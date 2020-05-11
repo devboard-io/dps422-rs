@@ -8,7 +8,6 @@
 //! [embedded-hal]: https://docs.rs/embedded-hal
 
 
-
 #![no_std]
 
 mod register;
@@ -19,8 +18,6 @@ use hal::blocking::i2c;
 
 pub use register::Register;
 pub use config::*;
-
-
 
 const PRODUCT_ID: u8 = 0x1A;
 
@@ -69,7 +66,7 @@ pub struct DPS422<I2C> {
     i2c: I2C,
     address: u8,
     coeffs: CalbrationCoeffs,
-    pres_rate: PressureRate,
+    oversampling_rate: PressureResolution
 }
 
 impl<I2C, E> DPS422<I2C>
@@ -82,7 +79,7 @@ where
             i2c,
             address,
             coeffs: CalbrationCoeffs::default(),
-            pres_rate: PressureRate::_1_SPS // config.pres_Rate.un
+            oversampling_rate: config.pres_res.unwrap_or_default()
         };
 
 
@@ -158,7 +155,7 @@ where
     }
 
     // 5.1.1
-    pub fn read_temp_scaled(&mut self) -> Result<f32, E> {
+    fn read_temp_scaled(&mut self) -> Result<f32, E> {
         let temp_x: f32 = self.read_temp_raw()? as f32 / 1048576.0;
         Ok((8.5 * temp_x) / (1.0 + 8.8 * temp_x))
     }
@@ -184,10 +181,10 @@ where
         Ok(pressure)
     }
 
-    pub fn read_pressure_scaled(&mut self) -> Result<f32, E> {
+    fn read_pressure_scaled(&mut self) -> Result<f32, E> {
 
         let pres_raw = self.read_pressure_raw()?;
-        let k_p = 524288.0; // todo depends on oversampling config
+        let k_p = self.oversampling_rate.get_kP_value();
         let pres_scaled = pres_raw as f32 / k_p;
 
         Ok(pres_scaled)
