@@ -117,35 +117,44 @@ where
         Ok(())
     }
 
+    /// Set measurement mode to `idle`
     fn standby(&mut self) -> Result<(), E> {
-        // measurement mode = idle
         self.write_reg(Register::MEAS_CFG, 0)
     }
 
+    /// Returns the product ID from PROD_ID register.
+    /// This value is expected to be 0x1A
     pub fn get_product_id(&mut self) -> Result<u8, E> {
         let id = self.read_reg(Register::PROD_ID)?;
         Ok(id)
     }
 
+    /// Read status bits from MEAS_CFG reg.
+    /// MEAS_CFG register is maskedd with 0xF0
     pub fn read_status(&mut self) -> Result<u8, E> {
         let meas_cfg = self.read_reg(Register::MEAS_CFG)?;
         Ok(meas_cfg & 0xF0)
     }
 
+    /// Start a single or continuous measurement for `pres`sure or `temp`erature
     pub fn trigger_measurement(&mut self, temp: bool, pres: bool, continuous: bool) -> Result<(), E> {
         self.write_reg(Register::MEAS_CFG, (continuous as u8) << 2 | (temp as u8) << 1 | pres as u8)
     }
 
+    /// returns the init_complete bit from the status register
     pub fn init_complete(&mut self) -> Result<bool, E> {
         let status = self.read_status()?;
         Ok((status & 0x80) != 0)
     }
+
+    /// returns the data_ready bit from the status register
     pub fn data_ready(&mut self) -> Result<bool, E> {
         let status = self.read_status()?;
         // todo only return pressure ready for now
         Ok((status & 0x10) != 0)
     }
 
+    /// Read raw temperature contents
     fn read_temp_raw(&mut self) -> Result<i32, E> {
         let mut bytes: [u8; 3] = [0, 0, 0];
         self.i2c.write_read(self.address, &[Register::TMP_B2.addr()], &mut bytes)?;
@@ -154,13 +163,15 @@ where
         Ok(temp)
     }
 
-    // 5.1.1
+    /// See section 5.1.1: only used for pressure correction
     fn read_temp_scaled(&mut self) -> Result<f32, E> {
         let temp_x: f32 = self.read_temp_raw()? as f32 / 1048576.0;
         Ok((8.5 * temp_x) / (1.0 + 8.8 * temp_x))
     }
 
-    // 6.2
+    /// Read calibrated temperature data in degrees Celsius
+    /// This method uses the pre calculated constants based on the calibration coefficients
+    /// See section 6.2 in the datasheet
     pub fn read_temp_calibrated(&mut self) -> Result<f32, E> {
 
         const ALPHA: f32 = 9.45;
@@ -172,6 +183,7 @@ where
         Ok((self.coeffs.T_A * mu) + self.coeffs.T_B)
     }
 
+    /// Read raw pressure contents
     pub fn read_pressure_raw(&mut self) -> Result<i32, E> {
 
         let mut bytes: [u8; 3] = [0, 0, 0];
@@ -190,6 +202,9 @@ where
         Ok(pres_scaled)
     }
 
+    /// Read calibrated pressure data in kPa
+    /// This method uses the calibration coefficients
+    /// See section 5.1 in the datasheet
     pub fn read_pressure_calibrated(&mut self) -> Result<f32, E> {
 
         let pres_scaled = self.read_pressure_scaled()?;
@@ -210,8 +225,9 @@ where
         Ok(pres_cal)
     }
 
+    /// Issue a full reset and fifo flush
     pub fn reset(&mut self) -> Result<(), E> {
-        self.write_reg(Register::RESET, 0b1001)
+        self.write_reg(Register::RESET, 0b10001001)
     }
 
     fn write_reg(&mut self, reg: Register, value: u8) -> Result<(), E> {
@@ -230,6 +246,9 @@ where
         self.i2c.write(self.address, &bytes)
     }
 
+    /// Writes to undocumented registers. Taken from official DSP422 Arduino driver
+    ///
+    /// See https://github.com/Infineon/DPS422-Library-Arduino/blob/63a4abc442a00cfe166988dcc3b844c281380cea/src/DpsClass.cpp#L442
     fn _correct_temp(&mut self) -> Result<(), E> {
         self._write_byte(0x0E, 0xA5)?;
         self._write_byte(0x0F, 0x96)?;
