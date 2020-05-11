@@ -1,5 +1,8 @@
 # DPS422 embedded-hal I2C driver crate
 
+![](https://img.shields.io/crates/v/dps422.svg)
+![](https://docs.rs/dps422/badge.svg)
+
 A platform agnostic driver to interface with the DPS422 barometric pressure & temp sensor.
 This driver uses I2C via [embedded-hal](https://docs.rs/embedded-hal). Note that the DPS422 also supports SPI, however that is not (yet) implemented in this driver.
 
