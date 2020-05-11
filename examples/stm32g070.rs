@@ -67,7 +67,7 @@ fn main() -> ! {
 
     }
     writeln!(usart, "pressure sensor init done").unwrap();
-    dps.trigger_measurement().unwrap();
+    dps.trigger_measurement(true, true, false).unwrap();
 
     loop {
         led2.toggle().unwrap();
@@ -77,7 +77,7 @@ fn main() -> ! {
             let pressure = dps.read_pressure_calibrated().unwrap();
             let temp = dps.read_temp_calibrated().unwrap();
             writeln!(usart, "pressure: {:.1} [kPa]\t temp: {:.1} [˚C]", pressure, temp).unwrap();
-            dps.trigger_measurement().unwrap();
+            dps.trigger_measurement(true, true, false).unwrap();
         }
     }
 }

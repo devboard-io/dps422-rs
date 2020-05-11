@@ -1,6 +1,13 @@
 //!
 //! DPS422 embedded-hal I2C driver crate
 //!
+//! A platform agnostic driver to interface with the DPS422 barometric pressure & temp sensor.
+//! This driver uses I2C via [embedded-hal]. Note that the DPS422 also supports SPI, however that
+//! is not (yet) implemented in this driver.
+//!
+//! [embedded-hal]: https://docs.rs/embedded-hal
+
+
 
 #![no_std]
 
@@ -128,8 +135,8 @@ where
         Ok(meas_cfg & 0xF0)
     }
 
-    pub fn trigger_measurement(&mut self) -> Result<(), E> {
-        self.write_reg(Register::MEAS_CFG, 0b011)
+    pub fn trigger_measurement(&mut self, temp: bool, pres: bool, continuous: bool) -> Result<(), E> {
+        self.write_reg(Register::MEAS_CFG, (continuous as u8) << 2 | (temp as u8) << 1 | pres as u8)
     }
 
     pub fn init_complete(&mut self) -> Result<bool, E> {
